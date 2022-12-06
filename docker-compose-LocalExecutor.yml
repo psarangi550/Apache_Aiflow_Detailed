@@ -1,0 +1,50 @@
+version: '2.1'
+services:
+    postgres:
+        image: postgres:9.6
+        environment:
+            - POSTGRES_USER=airflow
+            - POSTGRES_PASSWORD=airflow
+            - POSTGRES_DB=airflow
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+        volumes:
+            - ./sql_files:/var/lib/postgresql/sql_files
+            - ./store_files:/var/lib/postgresql/store_files
+    mysql:
+        image: mysql:5.7.27
+        environment:
+            - MYSQL_ROOT_PASSWORD=root
+        volumes:
+            - ./store_files:/store_files_mysql/
+            - ./mysql.cnf:/etc/mysql/mysql.cnf
+    webserver:
+        image: puckel/docker-airflow:1.10.9
+        restart: always
+        depends_on:
+            - mysql
+            - postgres
+        environment:
+            - LOAD_EX=n
+            - EXECUTOR=Local
+            - INSTALL_MYSQL=y
+        logging:
+            options:
+                max-size: 10m
+                max-file: "3"
+        volumes:
+            - ./dags:/usr/local/airflow/dags
+            - ./sql_files:/usr/local/airflow/sql_files
+            - ./store_files:/usr/local/airflow/store_files
+            - ./plugins:/usr/local/airflow/plugins
+            - ./config/airflow.cfg:/usr/local/airflow/airflow.cfg
+        ports:
+            - "9080:8080"
+        command: webserver
+        healthcheck:
+            test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+            interval: 30s
+            timeout: 30s
+            retries: 3
